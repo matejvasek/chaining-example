@@ -3,7 +3,7 @@
 set -e
 set -x
 
-PROJECT=my-chaining-proj-asdfqwerwerasdf
+PROJECT=my-chaining-proj-qwerasdf
 PROJECT_DIR=${HOME}/${PROJECT}
 DOCKER_REGISTRY=quay.io/mvasek
 
@@ -15,7 +15,7 @@ oc label namespace ${PROJECT} knative-eventing-injection=enabled --overwrite
 oc wait --for=condition=ready broker/default
 
 cd ${PROJECT_DIR}
-cat << EOF > cronjob-source.yaml
+cat << EOF | oc apply -f -
 apiVersion: sources.eventing.knative.dev/v1alpha1
 kind: CronJobSource
 metadata:
@@ -30,7 +30,6 @@ spec:
       kind: Broker
       name: default
 EOF
-oc apply -f cronjob-source.yaml
 oc wait --for=condition=ready cronjobsource/cronjob-source
 
 mkdir ${PROJECT_DIR}/func-a
@@ -67,7 +66,7 @@ appsody deploy --knative --no-build -n ${PROJECT}
 set -e
 while ! { oc wait --for=condition=ready ksvc/func-a 2>/dev/null; }; do sleep 1; done
 
-cat << EOF > trigger.yaml
+cat << EOF | oc apply -f -
 apiVersion: eventing.knative.dev/v1alpha1
 kind: Trigger
 metadata:
@@ -84,7 +83,6 @@ spec:
       kind: Service
       name: func-a
 EOF
-oc apply -f trigger.yaml
 oc wait --for=condition=ready trigger/func-a-trigger
 
 mkdir ${PROJECT_DIR}/func-b
@@ -107,7 +105,7 @@ appsody build --tag "${DOCKER_REGISTRY}/func-b:v1" --push --knative
 appsody deploy --knative --no-build -n ${PROJECT}
 while ! { oc wait --for=condition=ready ksvc/func-b 2>/dev/null; }; do sleep 1; done
 
-cat << EOF > trigger.yaml
+cat << EOF | oc apply -f -
 apiVersion: eventing.knative.dev/v1alpha1
 kind: Trigger
 metadata:
@@ -125,7 +123,6 @@ spec:
       kind: Service
       name: func-b
 EOF
-oc apply -f trigger.yaml
 oc wait --for=condition=ready trigger/func-b-trigger
 
 while true; do
