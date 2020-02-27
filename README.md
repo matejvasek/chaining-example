@@ -185,7 +185,7 @@ If you don't want to wait one minute for event to be sent you can emulate it.
 
 Forward port from the broker to the localhost:
 ```shell
-oc port-forward $(oc get pod -l eventing.knative.dev/broker=default,eventing.knative.dev/brokerRole=ingress -o=jsonpath='{.items[].metadata.name}') 8080:8080
+oc port-forward svc/default-broker 8080:80
 ```
 
 Emulate an event by `curl`:
