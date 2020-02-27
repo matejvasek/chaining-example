@@ -3,49 +3,38 @@
 set -e
 set -x
 
-PROJECT=chaining-test-project
+PROJECT=my-chaining-proj-asdfqwerwerasdf
+PROJECT_DIR=${HOME}/${PROJECT}
 DOCKER_REGISTRY=quay.io/mvasek
 
-function wait-for-broker() {
-    set +e
-    set +x
-    while true; do
-        echo "waiting for broker..."
-        local BROKER_READY=$(oc get broker -o=jsonpath='{.items[?(@.metadata.name == "default")].status.conditions[?(@.type == "Ready")].status}' 2>/dev/null)
-        if [[ $BROKER_READY == "True" ]]; then
-            break
-        fi
-        sleep 1
-    done
-    echo "broker ready"
-    set -e
-    set -x
-}
-
-function wait-for-function() {
-    set +e
-    set +x
-    while true; do
-        echo "waiting for function..."
-        local FUNC_READY=$(oc get pods -l app.kubernetes.io/name=$1 -o=jsonpath='{.items[0].status.conditions[?(@.type == "Ready")].status}' 2>/dev/null)
-        if [[ $FUNC_READY == "True" ]]; then
-            break
-        fi
-        sleep 1
-    done
-    echo "function ready"
-    set -e
-    set -x
-}
-
-oc adm new-project ${PROJECT}
+oc new-project ${PROJECT}
 oc project ${PROJECT}
+mkdir -p ${PROJECT_DIR}
+
 oc label namespace ${PROJECT} knative-eventing-injection=enabled --overwrite
+oc wait --for=condition=ready broker/default
 
-wait-for-broker
+cd ${PROJECT_DIR}
+cat << EOF > cronjob-source.yaml
+apiVersion: sources.eventing.knative.dev/v1alpha1
+kind: CronJobSource
+metadata:
+  namespace: ${PROJECT}
+  name: cronjob-source
+spec:
+  schedule: "*/1 * * * *"
+  data: '{"message": "***from cronjob***"}'
+  sink:
+    ref:
+      apiVersion: eventing.knative.dev/v1alpha1
+      kind: Broker
+      name: default
+EOF
+oc apply -f cronjob-source.yaml
+oc wait --for=condition=ready cronjobsource/cronjob-source
 
-mkdir func-a
-cd func-a
+mkdir ${PROJECT_DIR}/func-a
+cd ${PROJECT_DIR}/func-a
 
 appsody init dev.local/node-ce-functions
 cat << EOF > index.js
@@ -76,26 +65,7 @@ appsody build --tag "${DOCKER_REGISTRY}/func-a:v1" --push --knative
 set +e
 appsody deploy --knative --no-build -n ${PROJECT}
 set -e
-
-wait-for-function func-a
-
-cat << EOF > cronjob-source.yaml
-apiVersion: sources.eventing.knative.dev/v1alpha1
-kind: CronJobSource
-metadata:
-  namespace: ${PROJECT}
-  name: cronjob-source
-spec:
-  schedule: "*/1 * * * *"
-  data: '{"message": "***from cronjob***"}'
-  sink:
-    ref:
-      apiVersion: eventing.knative.dev/v1alpha1
-      kind: Broker
-      name: default
-EOF
-oc apply -f cronjob-source.yaml
-# TODO wait for the cronjob pod to start
+while ! { oc wait --for=condition=ready ksvc/func-a 2>/dev/null; }; do sleep 1; done
 
 cat << EOF > trigger.yaml
 apiVersion: eventing.knative.dev/v1alpha1
@@ -115,15 +85,10 @@ spec:
       name: func-a
 EOF
 oc apply -f trigger.yaml
+oc wait --for=condition=ready trigger/func-a-trigger
 
-cd ..
-
-
-
-
-
-mkdir func-b
-cd func-b
+mkdir ${PROJECT_DIR}/func-b
+cd ${PROJECT_DIR}/func-b
 appsody init dev.local/node-ce-functions
 cat << EOF > index.js
 'use strict';
@@ -139,11 +104,8 @@ EOF
 
 appsody build --tag "${DOCKER_REGISTRY}/func-b:v1" --push --knative
 
-set +e
 appsody deploy --knative --no-build -n ${PROJECT}
-set -e
-
-wait-for-function func-b
+while ! { oc wait --for=condition=ready ksvc/func-b 2>/dev/null; }; do sleep 1; done
 
 cat << EOF > trigger.yaml
 apiVersion: eventing.knative.dev/v1alpha1
@@ -164,8 +126,8 @@ spec:
       name: func-b
 EOF
 oc apply -f trigger.yaml
+oc wait --for=condition=ready trigger/func-b-trigger
 
 while true; do
-    wait-for-function func-b
     oc logs -f $(oc get pods -l app.kubernetes.io/name=func-b -o=jsonpath='{.items[0].metadata.name}') -c user-container
 done
