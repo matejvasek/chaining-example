@@ -30,7 +30,7 @@ cd ${PROJECT_DIR}
 
 ```shell
 oc label namespace ${PROJECT} knative-eventing-injection=enabled --overwrite
-oc get broker -w
+oc wait --for=condition=ready broker/default
 ```
 This creates default broker for the project.
 Wait until the default broker is ready.
@@ -54,7 +54,7 @@ spec:
       name: default
 EOF
 oc apply -f cronjob-source.yaml
-oc get pod -l sources.eventing.knative.dev/cronJobSource=cronjob-source -w
+oc wait --for=condition=ready cronjobsource/cronjob-source
 ```
 This creates CronJob. The job sends event every minute.
 Wait until the job is running.
@@ -92,7 +92,7 @@ EOF
 appsody build --tag "${DOCKER_REGISTRY}/func-a:v1" --push --knative
 
 appsody deploy --knative --no-build -n ${PROJECT}
-oc get ksvc -w
+oc wait --for=condition=ready ksvc/func-a
 ```
 This creates the `func-a` function.
 Wait until the function (Knative Service) is ready.
@@ -116,7 +116,7 @@ spec:
       name: func-a
 EOF
 oc apply -f trigger.yaml
-oc get trigger -w
+oc wait --for=condition=ready trigger/func-a-trigger
 ```
 This sets up a trigger. The trigger makes the `func-a` function receiveing `CronJob` events.
 Wait until the trigger is ready.
@@ -142,7 +142,7 @@ EOF
 appsody build --tag "${DOCKER_REGISTRY}/func-b:v1" --push --knative
 
 appsody deploy --knative --no-build -n ${PROJECT}
-oc get ksvc -w
+oc wait --for=condition=ready ksvc/func-b
 ```
 This creates the `func-b` function. Wait until the function (Knative Service) is ready.
 
@@ -166,7 +166,7 @@ spec:
       name: func-b
 EOF
 oc apply -f trigger.yaml
-oc get trigger -w
+oc wait --for=condition=ready trigger/func-b-trigger
 ```
 This sets up a trigger. The trigger makes the `func-b` function receiving events from the `func-a` function.
 Wait until the trigger is ready.
