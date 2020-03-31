@@ -3,6 +3,8 @@
 set -e
 set -x
 
+appsody repo add boson https://github.com/openshift-cloud-functions/stacks/releases/latest/download/boson-index.yaml
+
 PROJECT=my-chaining-proj-qwerasdf
 PROJECT_DIR=${HOME}/${PROJECT}
 DOCKER_REGISTRY=quay.io/mvasek
@@ -35,7 +37,7 @@ oc wait --for=condition=ready cronjobsource/cronjob-source
 mkdir ${PROJECT_DIR}/func-a
 cd ${PROJECT_DIR}/func-a
 
-appsody init dev.local/node-ce-functions
+appsody init boson/node-ce-functions
 cat << EOF > index.js
 'use strict';
 
@@ -87,17 +89,32 @@ oc wait --for=condition=ready trigger/func-a-trigger
 
 mkdir ${PROJECT_DIR}/func-b
 cd ${PROJECT_DIR}/func-b
-appsody init dev.local/node-ce-functions
-cat << EOF > index.js
-'use strict';
+appsody init boson/quarkus-ce-functions
+cat << EOF > src/main/java/org/funqy/demo/LoggingFunction.java
+package org.funqy.demo;
 
-module.exports = function (context) {
-  console.log('\n\n***func-b has been invoked***\n\n')
-  if (!context.cloudevent) {
-    throw new Error('No cloud event received');
-  }
-  console.log("***Cloud event received: " + JSON.stringify(context.cloudevent) + "***");
-};
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.funqy.Funq;
+import org.jboss.logging.Logger;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class LoggingFunction {
+
+    private static final Logger log = Logger.getLogger("funqy.logging");
+
+    @Funq
+    public void logEvent(Map<String,String> data) throws JsonProcessingException {
+        log.info("Event data: " + (new ObjectMapper()).writeValueAsString(data));
+    }
+}
+
+EOF
+
+cat << EOF > src/main/resources/application.properties
+quarkus.funqy.export=logEvent
 EOF
 
 appsody build --tag "${DOCKER_REGISTRY}/func-b:v1" --push --knative
