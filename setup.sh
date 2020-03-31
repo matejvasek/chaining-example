@@ -5,7 +5,7 @@ set -x
 
 appsody repo add boson https://github.com/openshift-cloud-functions/stacks/releases/latest/download/boson-index.yaml
 
-PROJECT=my-chaining-proj-qwerasdf
+PROJECT=my-chaining-proj
 PROJECT_DIR=${HOME}/${PROJECT}
 DOCKER_REGISTRY=quay.io/mvasek
 
