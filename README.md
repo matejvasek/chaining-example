@@ -156,6 +156,7 @@ cat << EOF > src/main/resources/application.properties
 quarkus.funqy.export=logEvent
 EOF
 
+rm src/test/java/org/funqy/demo/*
 
 appsody build --tag "${DOCKER_REGISTRY}/func-b:v1" --push --knative
 
