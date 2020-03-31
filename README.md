@@ -1,4 +1,4 @@
-## Function chaining example for [node-ce-functions](https://github.com/openshift-cloud-functions/node-ce-functions)
+## Function chaining example for [node-ce-functions](https://github.com/openshift-cloud-functions/node-ce-functions) and [quarkus-ce-functions](https://github.com/openshift-cloud-functions/quarkus-ce-functions)
 
 This is heavily based on: https://github.com/danbev/faas-js-runtime-image/tree/knative-example/example
 
