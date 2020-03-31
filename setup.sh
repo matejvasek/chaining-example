@@ -1,9 +1,9 @@
 #!/bin/bash
 
+appsody repo add boson https://github.com/openshift-cloud-functions/stacks/releases/latest/download/boson-index.yaml
+
 set -e
 set -x
-
-appsody repo add boson https://github.com/openshift-cloud-functions/stacks/releases/latest/download/boson-index.yaml
 
 PROJECT=my-chaining-proj
 PROJECT_DIR=${HOME}/${PROJECT}
